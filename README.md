@@ -4,6 +4,13 @@
  
 - KLV-Spectrwm-CE-2.0 Using PipeWire
 
+![2023-11-01_750x422-thumb](https://github.com/sofijacom/KLV-Spectrwm-CE/assets/107557749/df55842b-549f-497f-a786-b03bbb1cb1ac)
+
+##
+
+![2023-10-31_750x422-thumb](https://github.com/sofijacom/KLV-Spectrwm-CE/assets/107557749/608696ec-86f9-4126-ac12-ae0443bdca43)
+
+
 # Assembly of KLV-Spectrwm-CE
 
 1) Create a folder `KLV-Spectrwm-CE` typing in the terminal `mkdir -p KLV-Spectrwm-CE`
@@ -36,7 +43,7 @@ mksquashfs 07firstrib_rootfs 07 KLV-Spectrwm-CE-x.x.sfs -noappend -comp xz -b 51
 FirstRib-KLA build script. 
 
 ```
-FR_minimal_void_spectrwm_CE_2.sh
+./FR_minimal_void_spectrwm_CE_2.sh
 ```
 FirstRib-KLA build script PLUG file.
 
