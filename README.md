@@ -1,11 +1,11 @@
 # KLV-Spectrwm-CE
 
-- KLV-Spectrwm-CE-1.0 Using PulseAudi0
+- KLV-Spectrwm-CE-1.0  ( Using PulseAudio )
 
 ![2023-11-01_750x422-thumb](https://github.com/sofijacom/KLV-Spectrwm-CE/assets/107557749/df55842b-549f-497f-a786-b03bbb1cb1ac)
 
 ##
-- KLV-Spectrwm-CE-2.0 Using PipeWire
+- KLV-Spectrwm-CE-2.0 ( Using PipeWire )
 
 ![2023-10-31_750x422-thumb](https://github.com/sofijacom/KLV-Spectrwm-CE/assets/107557749/608696ec-86f9-4126-ac12-ae0443bdca43)
 
