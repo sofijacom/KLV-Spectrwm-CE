@@ -31,7 +31,7 @@
 8) Type in terminal.
 
 ```
-mksquashfs 07firstrib_rootfs 07 KLV-Spectrwm-CE-x.x.sfs -noappend -comp xz -b 512k
+mksquashfs 07firstrib_rootfs 07KLV-Spectrwm-CE-x.x.sfs -noappend -comp xz -b 512k
 ```
   - where x.x is your build number.
 
