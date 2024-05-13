@@ -10,7 +10,7 @@
 ![2023-10-31_750x422-thumb](https://github.com/sofijacom/KLV-Spectrwm-CE/assets/107557749/608696ec-86f9-4126-ac12-ae0443bdca43)
 
 
-# Assembly of KLV-Spectrwm-CE
+# 🌟 Assembly of KLV-Spectrwm-CE 🌟
 
 1) Create a folder `KLV-Spectrwm-CE` typing in the terminal `mkdir -p KLV-Spectrwm-CE`
 
