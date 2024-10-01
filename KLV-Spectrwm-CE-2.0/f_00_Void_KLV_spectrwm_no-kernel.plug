@@ -1,0 +1,416 @@
+# f_00_Void_KLV_spectrwm_no-kernel.plug
+# version="2.0-0"; revision="-rc1"
+# Kennel Linux Void outfitted with a spectrwm desktop 
+# Creation date 01May2023; Revision date: 19Aug2023
+# Copyright Kennel Linux team; License MIT
+
+# build this via terminal commands: build_firstrib_rootfs.sh
+# ./build_firstrib_rootfs.sh void default amd64 f_00_Void_KLV_spectrwm_no-kernel.plug
+# Architecture i386 will probably successfully build too as an alternative to amd64
+
+# login is:
+# user=root; passwd=root
+# user=spot; passwd=spot
+# user=weedog; passwd=weedog
+
+# All the parameters/commandlines can be appropriately changed:
+# Simply comment in or comment out till you have what you desire
+# or add new packages to the xbps-install lists.
+# You can add as many valid commandlines as you want in here.
+#
+# base system
+xbps-install -y base-minimal ncurses-base bash eudev
+xbps-install -y file mc xterm xauth
+xbps-install -y shadow wpa_supplicant  # needed for most wifi
+xbps-install -y ntfs-3g zstd rsync 
+
+# set up passwd system
+pwconv
+grpconv
+printf "root\nroot\n" | passwd >/dev/null 2>&1 # Quietly set default root passwd to "root"
+
+# set root to use /bin/bash
+usermod --shell /bin/bash root
+
+# Set locale to en_US.UTF-8 
+sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/default/libc-locales
+echo "LANG=en_US.UTF-8" >> /etc/environment
+xbps-reconfigure -f glibc-locales
+
+# Set Bash as shell
+xbps-alternatives --set bash
+
+## --------------------------------------------------------------------------
+## Xorg server, spectrwm Desktop configuration
+
+xbps-install -y xorg spectrwm rofi polybar
+xbps-install -y dmenu xlockmore tzutils
+xbps-install -y gvfs-smb gvfs-mtp gvfs-cdda
+xbps-install -y yad gxmessage xmessage acpi lua fox xdotool
+
+# Optional packages
+xbps-install -y geany gftp rox lxterminal
+xbps-install -y e2fsprogs yelp gparted
+xbps-install -y dosfstools mtools cpupower lm_sensors
+xbps-install -y squashfs-tools wget octoxbps 7zip
+xbps-install -y pcmanfm htop gpick gufw gettext
+
+# Desktop configuration
+xbps-install -y arandr mtpaint mpv
+xbps-install -y epdfview scrot sxiv gsimplecal-gtk3 gdmap
+xbps-install -y lxtask gzip python3-requests lxappearance viewnior
+xbps-install -y elogind xtools i3lock wmctrl nitrogen leafpad galculator
+xbps-install -y xsettingsd brightnessctl dunst xcompmgr 
+xbps-install -y hsetroot slop xdo xsel xtitle zsh fzf fd sed 
+xbps-install -y zsh-autosuggestions zsh-syntax-highlighting source-highlight 
+
+
+# Browser selection
+xbps-install -y firefox
+
+# Fix Firefox Fonts 
+#
+ln -s /usr/share/fontconfig/conf.avail/70-no-bitmaps.conf /etc/fonts/conf.d/
+xbps-reconfigure -f fontconfig
+
+# Install Audio
+#
+xbps-install -y pulseaudio pulseaudio-utils alsa-plugins-pulseaudio alsa-utils pavucontrol
+# ln -s /etc/sv/pulseaudio /etc/runit/runsvdir/default/pulseaudio
+
+# Pipewire volume
+xbps-install -y pipewire wireplumber-elogind alsa-pipewire
+# disable pulseaudio autostart
+mv /etc/xdg/autostart/pulseaudio.desktop /etc/xdg/autostart/pulseaudio.desktop.bak
+
+# symlink pipewire.desktop launcher in /etc/xdg/autostart/
+ln -s /usr/share/applications/pipewire.desktop /etc/xdg/autostart/pipewire.desktop
+
+# for root desktop
+mkdir -p /root/.config/pipewire/pipewire.conf.d 
+ln -s /usr/share/examples/wireplumber/10-wireplumber.conf /root/.config/pipewire/pipewire.conf.d/
+ln -s /usr/share/examples/pipewire/20-pipewire-pulse.conf /root/.config/pipewire/pipewire.conf.d/
+
+# for spot desktop 
+mkdir -p /home/spot/.config/pipewire/pipewire.conf.d 
+ln -s /usr/share/examples/wireplumber/10-wireplumber.conf /home/spot/.config/pipewire/pipewire.conf.d/
+ln -s /usr/share/examples/pipewire/20-pipewire-pulse.conf /home/spot/.config/pipewire/pipewire.conf.d/
+
+# Cups print service
+xbps-install -y cups cups-filters cups-pdf samba-cups
+ln -s /etc/sv/cupsd /etc/runit/runsvdir/default/cupsd
+
+# Install Network Manager
+#
+xbps-install -y NetworkManager network-manager-applet
+ln -s /etc/sv/NetworkManager /etc/runit/runsvdir/default/NetworkManager
+
+# Bluetooth
+xbps-install -y bluez bluez-alsa blueman
+ln -s /etc/sv/bluetoothd /etc/runit/runsvdir/default/bluetoothd
+ln -s /etc/sv/bluetoothd /var/service
+usermod -G bluetooth -a root
+ 
+# Add ~/Startup directory
+#
+mkdir -p /root/Startup
+cat <<'EOF' >> /usr/local/bin/start-up
+#!/bin/bash
+sleep 5
+user_home=$(eval echo ~${SUDO_USER})
+ls $user_home/Startup/* | while read J
+do
+   "$J" &
+done
+EOF
+
+chmod +x /usr/local/bin/start-up
+ 
+# Setup autologin on tty1
+#
+cp -a /etc/X11/xinit/xinitrc /root/.xinitrc
+cp -R /etc/sv/agetty-tty1 /etc/sv/agetty-autologin-tty1
+sed -i 's/GETTY_ARGS.*/GETTY_ARGS="--autologin root --noclear"/' /etc/sv/agetty-autologin-tty1/conf  # editing for autologin root
+touch /etc/sv/agetty-tty1/down
+
+# Arrange to startx in user's .bash_profile (per Arch Wiki)
+# Remove this section if not wanting boot straight into X
+touch ~/.bash_profile
+cat <<'AUTOLOGIN' > /etc/profile.d/autologin.sh
+# autologin on tty1
+if [ -z "$DISPLAY" ] && [ "$(fgconsole)" -eq 1 ]; then
+exec startx  # remove the exec if you want back to tty1 on exit X
+
+fi
+AUTOLOGIN
+
+# Get and install autologin fix
+#
+cd /etc/sv
+wget https://rockedge.org/kernels/data/XBPS_packages/agetty-autologin-tty1.tar.gz
+tar xvfz agetty-autologin-tty1.tar.gz
+
+# Use agetty-autologin-tty1 instead of agetty-tty1 
+rm -f /etc/runit/runsvdir/default/agetty-tty1
+ln -s /etc/sv/agetty-autologin-tty1 /etc/runit/runsvdir/default/agetty-autologin-tty1
+
+# enable dbus service
+ln -s /etc/sv/dbus /etc/runit/runsvdir/default/dbus
+
+# Auto-editing .xinitrc to use xfce4 instead of twm
+# Because I'm using exec here the script will end there so no xterms started
+#
+# sed -i 's/twm &/exec xfce4-session/' ~/.xinitrc
+
+sed -i '51,$d' /root/.xinitrc
+echo "pipewire &" >>/root/.xinitrc
+echo "pipewire-pulse &" >>/root/.xinitrc
+echo "/usr/local/bin/start-up &" >>/root/.xinitrc 
+echo "spectrwm" >>/root/.xinitrc  # removed exec to allow dropping out of Xorg to console
+# echo "rox -p default" >>/root/.xinitrc
+
+# add sudo -spot to .desktop files
+cd /usr/share/applications
+sed -i 's/^Exec=/&run-as-spot /' octoxbps.desktop
+sed -i 's/^Exec=/&run-as-spot /' octoxbps-notifier.desktop
+
+# Change to fancy prompt via .bashrc
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/.bashrc -O /root/.bashrc 
+
+# ZSH
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/ZSH/.alias_zsh -O /root/.alias_zsh
+chmod +x /root/.alias_zsh
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/ZSH/.zshrc -O /root/.zshrc
+chmod +x /root/.zshrc
+cd /root
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/ZSH/root-oh-my-zsh.tar.gz -O root-oh-my-zsh.tar.gz
+tar xvfz root-oh-my-zsh.tar.gz && rm root-oh-my-zsh.tar.gz
+chmod +x /root/.oh-my-zsh/oh-my-zsh.sh
+
+# Enable ZSH by default 
+# chsh -s /bin/zsh root
+# sed -i 's/zsh/# zsh/' /root/.bashrc
+
+# Pcmanfm .local
+cd /root 
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/root_local.tar.gz -O root_local.tar.gz
+tar xvfz root_local.tar.gz && rm root_local.tar.gz 
+
+## autostart firewall Gufw
+ln -s /etc/sv/ufw /var/service
+
+# Templates
+cd /root
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Templates.tar.gz -O Templates.tar.gz
+tar xvfz Templates.tar.gz && rm Templates.tar.gz
+
+# Xlock-xidlehok
+cd /
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xlock-xidlehok/xlock-xidlehok.tar.xz -O /xlock-xidlehok.tar.xz
+tar xJf /xlock-xidlehok.tar.xz && rm /xlock-xidlehok.tar.xz
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xlock-xidlehok/xlock_xidlehook -O /root/Startup/xlock_xidlehook
+chmod +x /root/Startup/xlock_xidlehook
+
+# ~/.Xresources for larger xterm uxterm fonts
+cat <<'XRESOURCES' > ~/.Xresources
+Xft*antialias: true
+Xft*autohint: true
+XTerm*background: black
+XTerm*foreground: grey
+XTerm*cursorColor: grey
+XTerm.vt100.geometry: 95x25+150
+XTerm.vt100.scrollBar: true
+XTerm.vt100.scrollbar.width: 8
+XTerm*faceName: Monospace Regular 
+XTerm*faceSize: 9
+
+UXft*antialias: true
+UXft*autohint: true
+UXTerm*background: black
+UXTerm*foreground: grey
+UXTerm*cursorColor: grey
+UXTerm.vt100.geometry: 84x25+150
+UXTerm*faceName: Monospace Regular 
+UXTerm*faceSize: 9
+XRESOURCES
+
+## USER CONFIGS: Copy main configs to /etc/skel for all normal users later added
+#
+xbps-install -y sudo
+cp -af /root/. /etc/skel
+mkdir -p /etc/skel/.config /etc/skel/.cache /etc/skel/.local/share
+echo Still some extra to do here re the likes of runit starting pulseaudio
+echo among other user needed config bits and pieces,
+echo so probably a few user-config issues noted as needing fixed here
+
+# Give wheel group nopasswd sudo rights and create weedog as wheel group member
+echo '%wheel ALL=(ALL) NOPASSWD: ALL' | (VISUAL="tee -a" visudo) # wheel group added to sudo no password required
+useradd -m -G wheel -s /bin/bash weedog  # weedog in wheel group so has elevated sudo permissions
+printf "weedog\nweedog\n" | passwd weedog >/dev/null 2>&1 # Quietly set default weedog passwd to "weedog"
+
+# Give wheel group nopasswd sudo rights and create spot as wheel group member
+echo '%wheel ALL=(ALL) NOPASSWD: ALL' | (VISUAL="tee -a" visudo) # wheel group added to sudo no password required
+useradd -m -G wheel -s /bin/bash spot  #spot in wheel group so has elevated sudo permissions
+printf "spot\nspot\n" | passwd spot >/dev/null 2>&1 # Quietly set default spot
+
+# Create /root directories
+#
+mkdir -p /root/Desktop
+mkdir -p /root/Documents
+mkdir -p /root/Downloads
+mkdir -p /root/Music
+mkdir -p /root/my-applications
+mkdir -p /root/Pictures
+mkdir -p /root/Public
+mkdir -p /root/Startup
+mkdir -p /root/Templates
+mkdir -p /root/Videos
+
+# Create /home/spot directories
+#
+mkdir -p /home/spot/Desktop
+mkdir -p /home/spot/Documents
+mkdir -p /home/spot/Downloads
+mkdir -p /home/spot/Music
+mkdir -p /home/spot/my-applications
+mkdir -p /home/spot/Pictures
+mkdir -p /home/spot/Public
+# mkdir -p /home/Startup
+mkdir -p /home/spot/Templates
+mkdir -p /home/spot/Videos
+
+
+# Set permissions
+#
+chown -R spot:spot /home/spot
+chown -R weedog:weedog /home/weedog
+
+# add users to groups and change permissions
+#
+usermod -a -G audio weedog
+usermod -a -G audio spot
+usermod -a -G video weedog
+usermod -a -G video spot
+xhost +
+chmod 755 /
+chmod 755 /bin
+chmod 755 /lib
+
+#### Get KLV custom packages ####
+#
+# Create and switch to build directory
+mkdir -p /root/Build
+cd /root/Build
+
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/uextract-4.7_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/SFS-Load-2.0_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/tas-1.15_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/packit-pfind-1.0_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/run-as-users-1.5_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/gtkhash-1.1.1_1.x86_64.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/xbps-programs/save2flash-1.9_0.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/pup-volume-monitor-1.15_0.x86_64.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/spectrwm-dcontrol-2.0_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/tzupdate2-2.0_2.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/xbps-tools-1.0_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Icons-themes/spectrwm-backgrounds-1.0_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Icons-themes/Spectrwm-bar-config-1.0_2.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Icons-themes/spectrwm-icons-1.0_3.noarch.xbps 
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Icons-themes/spectrwm-themes-1.0_4.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/Icons-themes/Touchpad-spectrwm-2.1_1.noarch.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/grub2config-2.0.1_1.x86_64.xbps
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/xbps-program/grub4dos-1.9.1_1.x86_64.xbps
+
+#### Install KLV custom packages ####
+
+# Register and index packages
+cd /root
+xbps-rindex -a Build/*.xbps
+
+# Install uextract
+xbps-install -y --repository=Build/ uextract-4.7_1
+
+# Install SFS-Load
+xbps-install -y --repository=Build/ SFS-Load-2.0_1
+
+# Install tas
+xbps-install -y --repository=Build/ tas-1.15_1
+
+# Install Packit and pFind
+xbps-install -y --repository=Build/ packit-pfind-1.0_1
+
+# Install run-as-spot and run-as-weedog
+xbps-install -y --repository=Build/ run-as-users-1.5_1
+
+# Install gtkhash
+xbps-install -y --repository=Build/ gtkhash-1.1.1_1
+
+# Install save2flash
+xbps-install -y --repository=Build/ save2flash-1.9_0
+
+# Install Volume-monitor
+xbps-install -y --repository=Build/ pup-volume-monitor-1.15_0
+
+# Dcontrol
+xbps-install -y --repository=Build/ spectrwm-dcontrol-2.0_1
+
+# Install tzupdate
+xbps-install -y --repository=Build/ tzupdate2-2.0_2
+
+# xbps tools
+xbps-install -y --repository=Build/ xbps-tools-1.0_1
+
+# spectrwm-backgrounds
+xbps-install -y --repository=Build/ spectrwm-backgrounds-1.0_1
+
+# Spectrwm-bar-config
+xbps-install -y --repository=Build/ Spectrwm-bar-config-1.0_2
+
+# spectrwm-icons
+xbps-install -y --repository=Build/ spectrwm-icons-1.0_3
+
+# spectrwm-themes
+xbps-install -y --repository=Build/ spectrwm-themes-1.0_4
+
+# Touchpad-spectrwm
+xbps-install -y --repository=Build/ Touchpad-spectrwm-2.1_1
+
+# grub2config
+xbps-install -y --repository=Build/ grub2config-2.0.1_1
+
+# grub4dos
+xbps-install -y --repository=Build/ grub4dos-1.9.1_1
+
+# Set execution permissions recursivly for binaries and scripts
+chmod +x -R /usr/local/bin
+
+# Clean Up
+#
+
+rm -r /root/Build
+rm /var/cache/xbps/*
+
+# Default-scripts
+cd /
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/default-scripts.tar.xz -O /default-scripts.tar.xz
+tar xJf /default-scripts.tar.xz && rm /default-scripts.tar.xz
+wget -c https://gitlab.com/sofija.p2018/kla-ot2/-/raw/main/KLV-Spectrwm/spiner.tar.xz -O /spiner.tar.xz
+tar xJf /spiner.tar.xz && rm /spiner.tar.xz
+
+#-----------------------------------------------------------------------
+
+## TIMEZONE SETUP
+# Etc/UTC
+#
+current_timezone="Etc/UTC"
+ln -sf /usr/share/zoneinfo/${current_timezone} /etc/localtime
+
+# Russian
+# ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime  # to install from console
+#
+#current_timezone="Europe/Moscow"
+#ln -sf /usr/share/zoneinfo/${current_timezone} /etc/localtime
+
+************************************************************************
+#-----------------------------------------------------------------------
+echo "desktop build process finished"
