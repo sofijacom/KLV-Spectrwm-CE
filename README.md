@@ -39,12 +39,12 @@ mksquashfs 07firstrib_rootfs 07KLV-Spectrwm-CE-x.x.sfs -noappend -comp xz -b 512
 
 ##
 
-FirstRib-KLA build script. 
+FirstRib-KLV build script. 
 
 ```
 ./FR_minimal_void_spectrwm_CE_2.sh
 ```
-FirstRib-KLA build script PLUG file.
+FirstRib-KLV build script PLUG file.
 
 Example of using a .plug file:
 
