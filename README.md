@@ -52,10 +52,6 @@ Example of using a .plug file:
 ./build_firstrib_rootfs.sh void default amd64 f_00_Void_KLV_spectrwm_no-kernel.plug
 ```
 
-***f_00_Void_KLV_spectrwm_no-kernel.plug***  builds a  ***(root filesystem)***  for the Void Linux-based Spectrwm desktop operating system, similar to **KLV-Spectrwm**.
-
-To create a complete distribution, all other utilities, tools and configurations are downloaded from a centralized repository and installed as a .tar.gz file.
-
 <p align="center">	
   <img src="https://github.com/sofijacom/sofijacom/blob/49e18fe1d7c2223884efd95af9370dcb84697427/icons_line/gray0_ctp_on_line.svg?sanitize=true" />
 </p>
